@@ -222,8 +222,8 @@ export default function ManajemenJadwal() {
       {/* Modal Buat Jadwal Baru */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-tosca-50 bg-tosca-50/20">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-tosca-50 bg-tosca-50/20 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-tosca-600 rounded-xl text-white">
                   <CalendarIcon size={20} />
@@ -234,7 +234,7 @@ export default function ManajemenJadwal() {
                 <X size={24} />
               </button>
             </div>
-            <form className="p-6 space-y-5" onSubmit={handleCreateSchedule}>
+            <form className="p-6 space-y-5 overflow-y-auto" onSubmit={handleCreateSchedule}>
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-tosca-700 ml-1">Nama Kegiatan</label>
                 <input type="text" value={formSesi} onChange={e => setFormSesi(e.target.value)} required className="w-full px-4 py-3 rounded-xl border border-tosca-100 focus:ring-2 focus:ring-tosca-500 text-sm text-[#0B7D72] font-medium" placeholder="Contoh: Tahfizh Sore" />
