@@ -69,7 +69,32 @@ export default function SertifikatSantriPage() {
     try {
       const res = await fetch(`/api/sertifikat?santuario_id=${user.id}`);
       const data = await res.json();
-      setSertifikatList(data.data || []);
+      const mapped = (data.data || []).map((r: any) => ({
+        id: r.id,
+        nomorSertifikat: r.nomor_sertifikat || r.no_sertifikat || '',
+        santriId: r.santuario_id,
+        nis: r.nis || '',
+        santriName: r.santri_name || '',
+        kelasNama: r.kelas_nama || '',
+        namaSurat: r.nama_surat || '',
+        juzKe: r.juz_ke || String(r.juz || ''),
+        statusKelulusan: r.status_kelulusan || (r.status === 'TERBIT' ? 'Lulus' : 'Proses'),
+        paragrafTeks: r.paragraf_teks || '',
+        namaSekolah: r.nama_sekolah || '',
+        alamatSekolah: r.alamat_sekolah || '',
+        akreditasi: r.akreditasi || 'A',
+        nilaiTajwid: r.nilai_tajwid ?? 0,
+        nilaiMakhraj: r.nilai_makhraj ?? 0,
+        nilaiKelancaran: r.nilai_kelancaran ?? 0,
+        nilaiRata: r.nilai_rata ?? 0,
+        kotaPenandatangan: r.kota_penandatangan || 'Palembang',
+        tanggalTerbit: r.tgl_cetak || '',
+        namaPenanggungJawab: r.nama_penanggung_jawab || '',
+        jabatan: r.jabatan || 'Kepala Pondok',
+        isPublished: r.status === 'TERBIT',
+        createdAt: r.created_at || '',
+      }));
+      setSertifikatList(mapped);
     } catch (e) {
       console.error(e);
     }
@@ -80,13 +105,7 @@ export default function SertifikatSantriPage() {
   }, [user]);
 
   // ── Filter: hanya milik santri ini & sudah published ──────────────────────
-  const mySertifikat = sertifikatList.filter(s =>
-    s.isPublished === true &&
-    (
-      (user && (s.santriId === user.id || s.nis === user.nis)) ||
-      !user
-    )
-  );
+  const mySertifikat = sertifikatList.filter(s => s.isPublished === true);
 
   // ── Unduh PDF ─────────────────────────────────────────────────────────────
   const handleDownload = async (rec: SertifikatRecord) => {

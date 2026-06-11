@@ -17,7 +17,8 @@ import {
   X,
   School,
   BookOpen,
-  ClipboardList
+  ClipboardList,
+  Megaphone
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,6 +36,7 @@ const menuItems = [
   { icon: ClipboardList, label: 'Manajemen Kehadiran', href: '/dashboard/admin/kehadiran' },
   { icon: GraduationCap, label: 'Manajemen Nilai', href: '/dashboard/admin/nilai' },
   { icon: Award, label: 'Sertifikat', href: '/dashboard/admin/sertifikat' },
+  { icon: Megaphone, label: 'Informasi & Pengumuman', href: '/dashboard/admin/informasi' },
 ];
 
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {

@@ -31,34 +31,73 @@ export default function AdminDashboard() {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('Data Berhasil Ditambah!');
   const [stats, setStats] = useState({
     totalSantri: 0,
     totalMusyrif: 0,
     totalKelas: 0,
-    rataHafalan: '0 Setoran'
+    rataHafalan: '0'
   });
+  const [changes, setChanges] = useState({ santri: '+0', musyrif: '+0', kelas: '+0', nilai: '+0.0' });
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
+  const [todayJadwal, setTodayJadwal] = useState<any[]>([]);
+  // Quick Add form
+  const [quickType, setQuickType] = useState('Santri');
+  const [quickName, setQuickName] = useState('');
+  const [quickEmail, setQuickEmail] = useState('');
+  const [quickKeterangan, setQuickKeterangan] = useState('');
+
+  const DAY_NAMES = ['MINGGU','SENIN','SELASA','RABU','KAMIS','JUMAT','SABTU'];
+
+  function formatJam(t: string) {
+    if (!t) return '—';
+    return t.slice(0, 5);
+  }
 
   // Load stats from API
   useEffect(() => {
     const loadStats = async () => {
       try {
-        const [santriRes, musyrifRes, kelasRes, setoranRes] = await Promise.all([
+        const [santriRes, musyrifRes, kelasRes, setoranRes, jadwalRes] = await Promise.all([
           fetch('/api/santri'),
           fetch('/api/musyrif'),
           fetch('/api/kelas'),
           fetch('/api/setoran'),
+          fetch('/api/jadwal'),
         ]);
         const santriJson = await santriRes.json();
         const musyrifJson = await musyrifRes.json();
         const kelasJson = await kelasRes.json();
         const setoranJson = await setoranRes.json();
+        const jadwalJson = await jadwalRes.json();
 
         const totalSantri = santriJson.data ? santriJson.data.length : 0;
         const totalMusyrif = musyrifJson.data ? musyrifJson.data.length : 0;
         const totalKelas = kelasJson.data ? kelasJson.data.length : 0;
         const setoranData = setoranJson.data || [];
-        const rataHafalan = `${setoranData.length} Setoran`;
+        const totalRata = setoranData.reduce((sum: number, r: any) => sum + (Number(r.rata_rata) || 0), 0);
+        const avgRata = setoranData.length > 0 ? (totalRata / setoranData.length).toFixed(1) : '0';
+
+        // Change statistik — bandingkan dengan snapshot localStorage
+        const prev = JSON.parse(localStorage.getItem('admin_dashboard_stats') || '{}');
+        const chSantri = prev.totalSantri !== undefined ? totalSantri - prev.totalSantri : 0;
+        const chMusyrif = prev.totalMusyrif !== undefined ? totalMusyrif - prev.totalMusyrif : 0;
+        const chKelas = prev.totalKelas !== undefined ? totalKelas - prev.totalKelas : 0;
+        const chNilai = prev.avgRata !== undefined && avgRata !== '0' ? (Number(avgRata) - Number(prev.avgRata)).toFixed(1) : '0.0';
+        localStorage.setItem('admin_dashboard_stats', JSON.stringify({ totalSantri, totalMusyrif, totalKelas, avgRata }));
+        setChanges({
+          santri: chSantri >= 0 ? `+${chSantri}` : `${chSantri}`,
+          musyrif: chMusyrif >= 0 ? `+${chMusyrif}` : `${chMusyrif}`,
+          kelas: chKelas >= 0 ? `+${chKelas}` : `${chKelas}`,
+          nilai: Number(chNilai) >= 0 ? `+${chNilai}` : `${chNilai}`,
+        });
+
+        // Jadwal Hari Ini
+        const todayName = DAY_NAMES[new Date().getDay()];
+        const todayJadwal = (jadwalJson.data || [])
+          .filter((j: any) => j.hari === todayName)
+          .slice(0, 3);
+        setTodayJadwal(todayJadwal);
 
         // Populate activities
         const mapped = setoranData.slice(0, 5).map((r: any, idx: number) => ({
@@ -66,19 +105,14 @@ export default function AdminDashboard() {
           type: 'hafalan',
           user: 'Musyrif',
           action: 'menilai setoran',
-          target: r.santriName || r.santri_nama || '-',
-          time: r.createdAt || 'Baru saja',
-          status: r.status === 'Lanjut' ? 'Lancar' : 'Ulang',
-          detail: `Santri ${r.santriName || r.santri_nama || '-'} menyetorkan dengan rata-rata ${(r.rata || 0).toFixed(1)}.`
+          target: r.santri_name || '-',
+          time: r.created_at || 'Baru saja',
+          status: r.status === 'LANJUT' ? 'Lancar' : 'Ulang',
+          detail: `Santri ${r.santri_name || '-'} menyetorkan ${r.surah || '—'} dengan rata-rata ${(r.rata_rata || 0).toFixed(1)}.`
         }));
         setActivitiesList(mapped);
 
-        setStats({
-          totalSantri,
-          totalMusyrif,
-          totalKelas,
-          rataHafalan,
-        });
+        setStats({ totalSantri, totalMusyrif, totalKelas, rataHafalan: avgRata });
       } catch (e) {
         console.error(e);
       }
@@ -87,11 +121,52 @@ export default function AdminDashboard() {
     loadStats();
   }, []);
 
-  const handleQuickAdd = (e: React.FormEvent) => {
+  const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsQuickAddOpen(false);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    if (!quickName.trim()) return;
+    try {
+      let res: Response | undefined;
+      if (quickType === 'Kelas') {
+        res = await fetch('/api/kelas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nama: quickName.trim(), level: parseInt(quickKeterangan) || 7 }),
+        });
+      } else if (quickType === 'Santri') {
+        const email = quickEmail.trim() || `${quickName.trim().toLowerCase().replace(/\s+/g, '.')}@baitulhuffaz.sch.id`;
+        res = await fetch('/api/santri', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: quickName.trim(), email, nis: quickKeterangan.trim() }),
+        });
+      } else if (quickType === 'Musyrif/ah') {
+        const email = quickEmail.trim() || `${quickName.trim().toLowerCase().replace(/\s+/g, '.')}@baitulhuffaz.sch.id`;
+        res = await fetch('/api/musyrif', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: quickName.trim(), email, nip: quickKeterangan.trim() }),
+        });
+      }
+      if (res && res.ok) {
+        setToastMsg('Data Berhasil Ditambah!');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        setIsQuickAddOpen(false);
+        setQuickName(''); setQuickEmail(''); setQuickKeterangan('');
+        // Hapus snapshot agar change terhitung dari awal setelah reload
+        localStorage.removeItem('admin_dashboard_stats');
+        window.location.reload();
+      } else {
+        setToastMsg('Gagal menambah data. Cek kembali input.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+      setToastMsg('Terjadi kesalahan. Coba lagi.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
   };
 
   const getActivityIcon = (type: string) => {
@@ -110,8 +185,8 @@ export default function AdminDashboard() {
       label: 'Total Santri',
       value: stats.totalSantri.toString(),
       icon: Users,
-      change: '+2',
-      isPositive: true,
+      change: changes.santri,
+      isPositive: !changes.santri.startsWith('-'),
       color: 'bg-blue-50 text-blue-600',
       href: '/dashboard/admin/santri',
       description: 'Santri aktif terdaftar'
@@ -120,8 +195,8 @@ export default function AdminDashboard() {
       label: 'Total Musyrif/ah',
       value: stats.totalMusyrif.toString(),
       icon: UserSquare2,
-      change: '+0',
-      isPositive: true,
+      change: changes.musyrif,
+      isPositive: !changes.musyrif.startsWith('-'),
       color: 'bg-tosca-50 text-tosca-600',
       href: '/dashboard/admin/musyrif',
       description: 'Guru & pengajar aktif'
@@ -130,21 +205,21 @@ export default function AdminDashboard() {
       label: 'Total Kelas',
       value: stats.totalKelas.toString(),
       icon: School,
-      change: '+0',
-      isPositive: true,
+      change: changes.kelas,
+      isPositive: !changes.kelas.startsWith('-'),
       color: 'bg-green-50 text-green-600',
       href: '/dashboard/admin/kelas',
       description: 'Kelas/halaqah aktif'
     },
     {
-      label: 'Rata-rata Hafalan',
+      label: 'Rata-rata Nilai',
       value: stats.rataHafalan,
       icon: BookOpen,
-      change: '+0.5 Juz',
-      isPositive: true,
+      change: changes.nilai,
+      isPositive: !changes.nilai.startsWith('-'),
       color: 'bg-orange-50 text-orange-600',
       href: '/dashboard/admin/nilai',
-      description: 'Progress hafalan'
+      description: 'Rata-rata nilai setoran hafalan'
     },
   ];
 
@@ -171,7 +246,7 @@ export default function AdminDashboard() {
               {showToast && (
                 <div className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-xl shadow-lg animate-in fade-in slide-in-from-right-4">
                   <CheckCircle2 size={18} />
-                  <span className="text-sm font-bold">Data Berhasil Ditambah!</span>
+                  <span className="text-sm font-bold">{toastMsg}</span>
                 </div>
               )}
             </div>
@@ -204,7 +279,7 @@ export default function AdminDashboard() {
             <div className="lg:col-span-2 bg-white rounded-3xl border border-tosca-50 shadow-sm overflow-hidden flex flex-col">
               <div className="p-6 border-b border-tosca-50 flex items-center justify-between bg-tosca-50/10">
                 <h2 className="text-lg font-black text-tosca-900">Aktivitas Terbaru</h2>
-                <Link href="/dashboard/admin/santri" className="text-tosca-600 text-sm font-bold hover:text-tosca-900 transition-colors bg-white px-4 py-1.5 rounded-full border border-tosca-50 shadow-sm">
+                <Link href="/dashboard/admin/nilai" className="text-tosca-600 text-sm font-bold hover:text-tosca-900 transition-colors bg-white px-4 py-1.5 rounded-full border border-tosca-50 shadow-sm">
                   Lihat Semua
                 </Link>
               </div>
@@ -307,24 +382,23 @@ export default function AdminDashboard() {
                   </Link>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-4 p-3 bg-tosca-50 rounded-xl border border-transparent hover:border-tosca-200 transition-all cursor-pointer group">
-                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-tosca-600 shadow-sm group-hover:bg-tosca-600 group-hover:text-white transition-all">
-                      <Clock size={20} />
+                  {todayJadwal.length === 0 ? (
+                    <p className="text-xs text-slate-400 font-bold text-center py-4">
+                      Tidak ada jadwal untuk hari ini.
+                    </p>
+                  ) : todayJadwal.map((j: any) => (
+                    <div key={j.id} className="flex items-center gap-4 p-3 bg-tosca-50 rounded-xl border border-transparent hover:border-tosca-200 transition-all cursor-pointer group">
+                      <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-tosca-600 shadow-sm group-hover:bg-tosca-600 group-hover:text-white transition-all">
+                        <Clock size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-tosca-900">{j.sesi || j.jenis || '-'}</p>
+                        <p className="text-xs text-tosca-500 font-bold">
+                          {formatJam(j.jam_mulai)} - {formatJam(j.jam_selesai)} {j.musyrif_name ? `• ${j.musyrif_name}` : ''}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-black text-tosca-900">Tahfizh Pagi</p>
-                      <p className="text-xs text-tosca-500 font-bold">05:00 - 07:00</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-3 bg-tosca-50 rounded-xl border border-transparent hover:border-tosca-200 transition-all cursor-pointer group">
-                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">
-                      <Clock size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-tosca-900">Murojaah Bersama</p>
-                      <p className="text-xs text-tosca-500 font-bold">16:00 - 17:30</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -407,23 +481,58 @@ export default function AdminDashboard() {
             <form onSubmit={handleQuickAdd} className="p-6 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-tosca-900 ml-1">Nama Lengkap</label>
-                <input type="text" required className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-black" placeholder="Nama Santri / Musyrif" />
+                <input
+                  type="text" required
+                  value={quickName}
+                  onChange={e => setQuickName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-black"
+                  placeholder="Nama Santri / Musyrif / Kelas"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-bold text-tosca-900 ml-1">Tipe Data</label>
-                  <select className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-tosca-900">
+                  <select
+                    value={quickType}
+                    onChange={e => setQuickType(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-tosca-900"
+                  >
                     <option>Santri</option>
                     <option>Musyrif/ah</option>
                     <option>Kelas</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-tosca-900 ml-1">Keterangan</label>
-                  <input type="text" className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-black" placeholder="Kelas / NIS / NIP" />
+                  <label className="text-sm font-bold text-tosca-900 ml-1">
+                    {quickType === 'Kelas' ? 'Level (7-12)' : quickType === 'Santri' ? 'NIS' : 'NIP'}
+                  </label>
+                  <input
+                    type="text"
+                    value={quickKeterangan}
+                    onChange={e => setQuickKeterangan(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-black"
+                    placeholder={quickType === 'Kelas' ? '7' : quickType === 'Santri' ? 'NIS Santri' : 'NIP Musyrif'}
+                  />
                 </div>
               </div>
-              <button type="submit" className="w-full py-4 bg-tosca-600 text-white rounded-2xl font-black shadow-lg shadow-tosca-100 mt-4">Simpan Data</button>
+              {quickType !== 'Kelas' && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-tosca-900 ml-1">Email</label>
+                  <input
+                    type="email"
+                    value={quickEmail}
+                    onChange={e => setQuickEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-black"
+                    placeholder="email@baitulhuffaz.sch.id"
+                  />
+                  <p className="text-[10px] text-slate-400 font-semibold ml-1">
+                    *Kosongi untuk generate otomatis. Password default: santri123 / musyrif123
+                  </p>
+                </div>
+              )}
+              <button type="submit" className="w-full py-4 bg-tosca-600 text-white rounded-2xl font-black shadow-lg shadow-tosca-100 mt-4">
+                Simpan Data
+              </button>
             </form>
           </div>
         </div>

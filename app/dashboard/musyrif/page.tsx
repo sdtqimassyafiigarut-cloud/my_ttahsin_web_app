@@ -7,7 +7,7 @@ import {
   GraduationCap,
   BookOpen, Star, BookOpenCheck, ClipboardList, CheckSquare,
   Calendar, Target, Award, Sparkles, User, Home, LogOut, ChevronRight, Clock, Smartphone,
-  Video
+  Video, Megaphone
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useSettings } from '@/lib/hooks/useSettings';
@@ -38,6 +38,7 @@ export default function MusyrifDashboard() {
     { id: 'kehadiran', label: 'Presensi', icon: CheckSquare, color: 'from-green-500 to-emerald-600', href: '/dashboard/musyrif/presensi' },
     { id: 'target', label: 'Target', icon: Target, color: 'from-fuchsia-500 to-purple-700', href: '/dashboard/musyrif/target' },
     { id: 'sertifikat', label: 'Sertifikat', icon: Award, color: 'from-yellow-500 to-amber-600', href: '/dashboard/musyrif/sertifikat' },
+    { id: 'informasi', label: 'Informasi', icon: Megaphone, color: 'from-pink-500 to-rose-600', href: '/dashboard/musyrif/informasi' },
     { id: 'profil', label: 'Profil', icon: User, color: 'from-slate-500 to-gray-600', href: '/dashboard/musyrif/profil' },
   ];
 

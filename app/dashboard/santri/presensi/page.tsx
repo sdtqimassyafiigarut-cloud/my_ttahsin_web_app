@@ -54,9 +54,19 @@ export default function PresensiSantriPage() {
     try {
       const res = await fetch(`/api/absensi?santuario_id=${user.id}`);
       const data = await res.json();
-      const allRecords: PresensiRecord[] = data.data || [];
-      allRecords.sort((a, b) => b.meetingId.localeCompare(a.meetingId));
-      setMyRecords(allRecords);
+      const mapped: PresensiRecord[] = (data.data || []).map((r: any) => ({
+        id: r.id,
+        meetingId: r.tanggal || '',
+        meetingName: new Date(r.tanggal || Date.now()).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+        santriId: r.santuario_id,
+        santriName: r.santri_name || '',
+        nis: r.nis || '',
+        kelasNama: r.kelas_nama || '',
+        status: r.status === 'HADIR' ? 'Hadir' as const : r.status === 'IZIN' ? 'Izin' as const : r.status === 'SAKIT' ? 'Sakit' as const : 'Alpa' as const,
+        createdAt: r.created_at || ''
+      }));
+      mapped.sort((a, b) => b.meetingId.localeCompare(a.meetingId));
+      setMyRecords(mapped);
     } catch (e) {
       console.error(e);
     }

@@ -49,6 +49,7 @@ export default function PresensiPage() {
   // Data states
   const [santriList, setSantriList] = useState<Santri[]>([]);
   const [records, setRecords] = useState<PresensiRecord[]>([]);
+  const [musyrifKelasId, setMusyrifKelasId] = useState<string | null>(null);
   
   // Interactive UI states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,11 +68,23 @@ export default function PresensiPage() {
   };
 
   const loadData = async () => {
+    if (!user) return;
     try {
-      const [santriRes, absensiRes] = await Promise.all([
-        fetch('/api/santri'),
-        fetch('/api/absensi')
-      ]);
+      // Get musyrif's kelas_id
+      const profileRes = await fetch(`/api/musyrif/${user.id}`);
+      const profileJson = await profileRes.json();
+      const mKelasId = profileJson.data?.kelas_id || null;
+      setMusyrifKelasId(mKelasId);
+
+      const [santriRes, absensiRes] = mKelasId
+        ? await Promise.all([
+            fetch(`/api/santri?kelas_id=${mKelasId}`),
+            fetch(`/api/absensi?kelas_id=${mKelasId}`)
+          ])
+        : await Promise.all([
+            fetch('/api/santri'),
+            fetch('/api/absensi')
+          ]);
       if (santriRes.ok) {
         const santriData = await santriRes.json();
         setSantriList(santriData.data || []);
@@ -83,11 +96,11 @@ export default function PresensiPage() {
           meetingId: r.tanggal || '',
           meetingName: `Presensi ${new Date(r.tanggal || Date.now()).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`,
           santriId: r.santuario_id,
-          santriName: r.santri_nama || '',
+          santriName: r.santri_name || '',
           nis: r.nis || '',
           kelasNama: r.kelas_nama || '',
-          status: r.status === 'HADIR' ? 'Hadir' : r.status === 'IZIN' ? 'Izin' : r.status === 'SAKIT' ? 'Sakit' : 'Alpa',
-          createdAt: new Date(r.tanggal || Date.now()).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+          status: r.status === 'HADIR' ? 'Hadir' as const : r.status === 'IZIN' ? 'Izin' as const : r.status === 'SAKIT' ? 'Sakit' as const : 'Alpa' as const,
+          createdAt: r.created_at || ''
         }));
         setRecords(mapped);
       }
@@ -97,8 +110,8 @@ export default function PresensiPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user) loadData();
+  }, [user]);
 
   // Handle setting up a new meeting session
   const handleAddMeeting = (e: React.FormEvent) => {

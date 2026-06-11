@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSettings } from '@/lib/hooks/useSettings';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
-  GraduationCap, Sparkles, Home, Star, ClipboardList, Target, Video, Award, User, LogOut, Calendar, CheckSquare, BookOpen
+  GraduationCap, Sparkles, Home, Star, ClipboardList, Target, Video, Award, User, LogOut, Calendar, CheckSquare, BookOpen, Megaphone
 } from 'lucide-react';
 
 const defaultProfile = {
@@ -26,6 +26,7 @@ const modules = [
   { id: 'presensi', label: 'Presensi', icon: CheckSquare, color: 'from-teal-500 to-emerald-600', href: '/dashboard/santri/presensi' },
   { id: 'virtual-class', label: 'Kelas Virtual', icon: Video, color: 'from-cyan-500 to-cyan-700', href: '/dashboard/santri/virtual-class' },
   { id: 'sertifikat', label: 'Sertifikat', icon: Award, color: 'from-yellow-500 to-amber-600', href: '/dashboard/santri/sertifikat' },
+  { id: 'informasi', label: 'Informasi', icon: Megaphone, color: 'from-pink-500 to-rose-600', href: '/dashboard/santri/informasi' },
 ];
 
 export default function SantriDashboard() {

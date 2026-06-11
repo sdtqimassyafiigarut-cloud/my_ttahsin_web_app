@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/ui/sidebar';
 import Navbar from '@/components/ui/navbar';
 import { 
@@ -21,29 +21,38 @@ export default function ManajemenNilai() {
   const [activeModal, setActiveModal] = useState<'filter' | 'analysis' | 'detail' | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [nilaiList, setNilaiList] = useState<any[]>([]);
+  const [kelasOptions, setKelasOptions] = useState<any[]>([]);
+  const [selectedKelas, setSelectedKelas] = useState('');
 
-React.useEffect(() => {
-    fetch('/api/setoran')
-      .then(res => res.json())
-      .then(data => {
-        if (data.data) {
-          const mapped = data.data.map((r: any) => ({
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/setoran'),
+      fetch('/api/kelas'),
+    ])
+      .then(([setoranRes, kelasRes]) => Promise.all([setoranRes.json(), kelasRes.json()]))
+      .then(([setoranData, kelasData]) => {
+        if (kelasData.data) setKelasOptions(kelasData.data);
+        if (setoranData.data) {
+          const mapped = setoranData.data.map((r: any) => ({
             id: r.id,
-            nama: r.santri_name ?? r.santriName,
-            juz: (r.surah ?? '').includes('Juz')
-              ? (r.surah ?? '').replace(/Juz\s+/i, '')
-              : '30',
+            nama: r.santri_name || '',
+            juz: r.juz || 30,
             surat: r.surah,
-            nilai: Number(r.rata ?? 0).toFixed(0),
-            status:
-              (r.rata ?? 0) >= 90 ? 'Mumtaz' :
-              (r.rata ?? 0) >= 80 ? 'Lancar' : 'Murojaah',
+            nilai: Number(r.rata_rata ?? 0).toFixed(0),
+            kelas_nama: r.kelas_nama || '',
+            status: Number(r.rata_rata ?? 0) >= 90 ? 'Mumtaz' : Number(r.rata_rata ?? 0) >= 80 ? 'Lancar' : 'Murojaah',
           }));
           setNilaiList(mapped);
         }
       })
       .catch(e => console.error('Gagal fetch nilai:', e));
   }, []);
+
+  const filteredNilai = nilaiList.filter(n => {
+    const matchesSearch = n.nama.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesKelas = !selectedKelas || n.kelas_nama === selectedKelas;
+    return matchesSearch && matchesKelas;
+  });
 
   const openDetail = (student: any) => {
     setSelectedStudent(student);
@@ -103,7 +112,11 @@ React.useEffect(() => {
                 <div className="p-8 text-center text-slate-400 font-bold">
                   Belum ada data nilai hafalan.
                 </div>
-              ) : nilaiList.filter(n => n.nama.toLowerCase().includes(searchTerm.toLowerCase())).map((n) => (
+              ) : filteredNilai.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-bold">
+                  Tidak ada data sesuai filter.
+                </div>
+              ) : filteredNilai.map((n) => (
                 <div key={n.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-tosca-50/30 transition-all duration-300 group">
                   <div className="flex items-center gap-5">
                     <div className="h-14 w-14 rounded-2xl bg-tosca-600 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-tosca-100 group-hover:scale-110 transition-transform">
@@ -159,11 +172,11 @@ React.useEffect(() => {
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-tosca-700">Pilih Kelas</label>
-                <select className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-tosca-900">
-                  <option>Semua Kelas</option>
-                  <option>7A</option>
-                  <option>8A</option>
-                  <option>9A</option>
+                <select value={selectedKelas} onChange={e => setSelectedKelas(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-tosca-100 font-bold text-tosca-900">
+                  <option value="">Semua Kelas</option>
+                  {kelasOptions.map(k => (
+                    <option key={k.id} value={k.nama}>{k.nama}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5">

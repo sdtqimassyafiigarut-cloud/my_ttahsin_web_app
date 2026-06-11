@@ -9,6 +9,7 @@ import {
   Clock, AlertCircle, BookMarked
 } from 'lucide-react';
 import { useSettings } from '@/lib/hooks/useSettings';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 // ─── Interface (compatible with SertifikatData from PDF template) ─────────────
 
@@ -74,6 +75,7 @@ function getPredikat(nilai: number) {
 // ─── Komponen Utama ────────────────────────────────────────────────────────────
 
 export default function SertifikatMusyrifPage() {
+  const { user } = useAuth();
   const { settings } = useSettings();
 
   const [sertifikatList, setSertifikatList] = useState<SertifikatRecord[]>([]);
@@ -88,10 +90,54 @@ export default function SertifikatMusyrifPage() {
 
   // ── Load data ─────────────────────────────────────────────────────────────
   const loadData = async () => {
+    if (!user) return;
     try {
+      // Get musyrif profile for kelas_id
+      const profileRes = await fetch(`/api/musyrif/${user.id}`);
+      const profileData = await profileRes.json();
+      const musyrifKelasId = profileData.data?.kelas_id;
+
+      // Get santri in this class
+      const santriRes = await fetch('/api/santri');
+      const santriData = await santriRes.json();
+      const kelasSantriIds: string[] = musyrifKelasId
+        ? (santriData.data || []).filter((s: any) => s.kelas_id === musyrifKelasId).map((s: any) => s.id)
+        : [];
+
+      // Get sertifikat
       const res = await fetch('/api/sertifikat');
       const data = await res.json();
-      if (data.data) setSertifikatList(data.data);
+      if (data.data) {
+        const filtered = data.data.filter((r: any) =>
+          kelasSantriIds.includes(r.santuario_id)
+        );
+        const mapped = filtered.map((r: any) => ({
+          id: r.id,
+          nomorSertifikat: r.nomor_sertifikat || r.no_sertifikat || '',
+          nis: r.nis || '',
+          santriName: r.santri_name || '',
+          kelasNama: r.kelas_nama || '',
+          namaSurat: r.nama_surat || '',
+          juzKe: r.juz_ke || String(r.juz || ''),
+          statusKelulusan: r.status_kelulusan || (r.status === 'TERBIT' ? 'Lulus' : 'Proses'),
+          nilaiTajwid: r.nilai_tajwid ?? 0,
+          nilaiMakhraj: r.nilai_makhraj ?? 0,
+          nilaiKelancaran: r.nilai_kelancaran ?? 0,
+          nilaiRata: r.nilai_rata ?? 0,
+          paragrafTeks: r.paragraf_teks || '',
+          namaSekolah: r.nama_sekolah || '',
+          alamatSekolah: r.alamat_sekolah || '',
+          akreditasi: r.akreditasi || 'A',
+          kotaPenandatangan: r.kota_penandatangan || 'Palembang',
+          tanggalTerbit: r.tgl_cetak || '',
+          namaPenanggungJawab: r.nama_penanggung_jawab || '',
+          jabatan: r.jabatan || 'Kepala Pondok',
+          catatan: r.catatan,
+          isPublished: r.status === 'TERBIT',
+          createdAt: r.created_at || '',
+        }));
+        setSertifikatList(mapped);
+      }
     } catch (e) {
       console.error('Gagal fetch sertifikat:', e);
     } finally {
@@ -101,7 +147,7 @@ export default function SertifikatMusyrifPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
 
   // ── Download / Preview PDF ────────────────────────────────────────────────
   const handlePDF = async (rec: SertifikatRecord, action: 'download' | 'preview') => {

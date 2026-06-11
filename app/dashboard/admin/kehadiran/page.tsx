@@ -42,21 +42,38 @@ export default function ManajemenKehadiran() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [santriList, setSantriList] = useState<Santri[]>([]);
   const [presensiRecords, setPresensiRecords] = useState<PresensiRecord[]>([]);
+  const [kelasOptions, setKelasOptions] = useState<any[]>([]);
   
   // Selection / Filter states
-  const [selectedKelas, setSelectedKelas] = useState<string>('Semua Kelas');
+  const [selectedKelas, setSelectedKelas] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const loadData = async () => {
     try {
-      const [santriRes, absensiRes] = await Promise.all([
+      const [santriRes, absensiRes, kelasRes] = await Promise.all([
         fetch('/api/santri'),
         fetch('/api/absensi'),
+        fetch('/api/kelas'),
       ]);
       const santriJson = await santriRes.json();
       if (santriJson.data) setSantriList(santriJson.data);
       const absensiJson = await absensiRes.json();
-      if (absensiJson.data) setPresensiRecords(absensiJson.data);
+      if (absensiJson.data) {
+        const mapped = (absensiJson.data || []).map((r: any) => ({
+          id: r.id,
+          meetingId: r.tanggal || '',
+          meetingName: new Date(r.tanggal || Date.now()).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+          santriId: r.santuario_id,
+          santriName: r.santri_name || '',
+          nis: r.nis || '',
+          kelasNama: r.kelas_nama || '',
+          status: r.status === 'HADIR' ? 'Hadir' as const : r.status === 'IZIN' ? 'Izin' as const : r.status === 'SAKIT' ? 'Sakit' as const : 'Alpa' as const,
+          createdAt: r.created_at || ''
+        }));
+        setPresensiRecords(mapped);
+      }
+      const kelasJson = await kelasRes.json();
+      if (kelasJson.data) setKelasOptions(kelasJson.data);
     } catch (e) {
       console.error(e);
     }
@@ -66,8 +83,8 @@ export default function ManajemenKehadiran() {
     loadData();
   }, []);
 
-  // Extract unique classes dynamically
-  const classesList = Array.from(new Set(santriList.map(s => s.kelas_nama)));
+  // Extract unique classes from Manajemen Kelas
+  const classesList = kelasOptions.length > 0 ? kelasOptions.map(k => k.nama) : Array.from(new Set(santriList.map(s => s.kelas_nama)));
 
   // Calculate rekap statistics per santri
   const rekapData = santriList.map(s => {
@@ -90,7 +107,7 @@ export default function ManajemenKehadiran() {
 
   // Filter rekapData based on selected class and search query
   const filteredRekap = rekapData.filter(item => {
-    const matchesKelas = selectedKelas === 'Semua Kelas' || item.kelas_nama === selectedKelas;
+    const matchesKelas = !selectedKelas || item.kelas_nama === selectedKelas;
     const matchesSearch = item.nama_lengkap.toLowerCase().includes(searchQuery.toLowerCase()) || item.nis.includes(searchQuery);
     return matchesKelas && matchesSearch;
   });
@@ -127,7 +144,7 @@ export default function ManajemenKehadiran() {
                 onChange={(e) => setSelectedKelas(e.target.value)}
                 className="bg-transparent font-bold text-tosca-900 border-none outline-none text-sm pr-4 cursor-pointer"
               >
-                <option value="Semua Kelas">Semua Kelas</option>
+                <option value="">Semua Kelas</option>
                 {classesList.map(cls => (
                   <option key={cls} value={cls}>{cls}</option>
                 ))}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllSertifikat, getSertifikatBySantri, createSertifikat } from '@/lib/services/sertifikat.service';
+import { getAllSertifikat, getSertifikatBySantri, syncSertifikatRecords } from '@/lib/services/sertifikat.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,8 +21,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const sertifikat = await createSertifikat(body);
-    return NextResponse.json({ data: sertifikat });
+    // Support both single object and { records: [...] } bulk format
+    if (body.records && Array.isArray(body.records)) {
+      await syncSertifikatRecords(body.records);
+    } else {
+      await syncSertifikatRecords([body]);
+    }
+    // Return latest data after sync
+    const data = await getAllSertifikat();
+    return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json({ error: 'Gagal menyimpan sertifikat' }, { status: 500 });
   }
