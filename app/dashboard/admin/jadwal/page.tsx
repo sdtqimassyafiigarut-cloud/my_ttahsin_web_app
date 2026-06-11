@@ -178,21 +178,21 @@ export default function ManajemenJadwal() {
                       <Clock size={28} />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-xl font-extrabold text-tosca-900">{item.title}</h4>
+                      <h4 className="text-xl font-extrabold text-tosca-900">{item.sesi}</h4>
                       <p className="text-sm text-tosca-500 font-bold flex items-center gap-1">
                         <Clock size={14} />
-                        {item.time}
+                        {item.jam_mulai ? item.jam_mulai.slice(0, 5) : '-'} - {item.jam_selesai ? item.jam_selesai.slice(0, 5) : '-'}
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-6 sm:gap-12">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-tosca-100 flex items-center justify-center text-tosca-600 font-bold border-2 border-white shadow-sm">
-                        {item.instructor.charAt(5)}
+                        {(item.musyrif_name || 'U')[0]}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-xs text-tosca-400 font-bold uppercase tracking-wider">Pengajar</span>
-                        <span className="text-sm font-bold text-tosca-800">{item.instructor}</span>
+                        <span className="text-sm font-bold text-tosca-800">{item.musyrif_name || '-'}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -201,11 +201,11 @@ export default function ManajemenJadwal() {
                       </div>
                       <div className="flex flex-col">
                         <span className="text-xs text-tosca-400 font-bold uppercase tracking-wider">Lokasi</span>
-                        <span className="text-sm font-bold text-tosca-800">{item.location}</span>
+                        <span className="text-sm font-bold text-tosca-800">{item.lokasi || '-'}</span>
                       </div>
                     </div>
                     <button 
-                      onClick={() => alert(`Detail Jadwal: ${item.title}`)}
+                      onClick={() => alert(`Detail Jadwal: ${item.sesi}`)}
                       className="flex items-center gap-2 px-4 py-2.5 bg-tosca-50 text-tosca-700 rounded-xl text-sm font-bold hover:bg-tosca-900 hover:text-white transition-all"
                     >
                       <ExternalLink size={16} />
