@@ -410,8 +410,8 @@ CREATE INDEX idx_zoom_meeting_date ON zoom_meetings(meeting_date);
 INSERT INTO users (id, email, password_hash, full_name, role)
 VALUES (
   'admin-default-001',
-  'admin@baitulhuffaz.sch.id',
-  '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', -- sha256('admin')
+  'admin@tahsin.com',
+  '$2b$10$0lZm9Xx85JQxkWiD1LBWLOzsOVEZyHtsdS2Kw.C3NgUk0beIN2Cdy', -- bcrypt('admin456')
   'Admin Utama',
   'ADMIN'
 ) ON CONFLICT (id) DO NOTHING;

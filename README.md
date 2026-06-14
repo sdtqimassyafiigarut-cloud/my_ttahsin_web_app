@@ -99,7 +99,7 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@baitulhuffaz.sch.id | admin123 |
+| Admin | admin@tahsin.com | admin456 |
 | Musyrif | musyrif@baitulhuffaz.sch.id | musyrif123 |
 | Santri | santri@baitulhuffaz.sch.id | santri123 |
 
